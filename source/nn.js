@@ -78,77 +78,154 @@ class Neural_Network {
 
 		this.TRAINING_TWEAK = 0.01;		// Amount each weight is adjusted by
 
+		this.LEARNING_RATE = 0.1;
+
 	}
 	getOutput(input) {
 		if (input.length != this.structure[0]) return console.log("Invalid Input length");
 
-		input = input.concat(1);
-
-		let output = [];
+		let neuronOutputs = Array(this.structure.length);
+		neuronOutputs[0] = input;
 		for (var layerNum=1; layerNum<this.structure.length; layerNum++) {
 			//console.log("Processing layer " + layerNum);
 
-			input = input.concat(1);	// Add input for bias
+			neuronOutputs[layerNum-1] = neuronOutputs[layerNum-1].concat(1);	// Add bias neurons input to this layer
+			neuronOutputs[layerNum] = [];
 			for (var neuronNum=0; neuronNum<this.structure[layerNum]; neuronNum++) {
 				var neuronOutput = 0;
 				for (var weightNum=0; weightNum<this.structure[layerNum-1]+1; weightNum++) {	// +1 for bias
-					neuronOutput += input[weightNum] * this.network[layerNum-1][weightNum].weights[neuronNum];
+					neuronOutput += neuronOutputs[layerNum-1][weightNum] * this.network[layerNum-1][weightNum].weights[neuronNum];
 				}
 				neuronOutput = Math.tanh(neuronOutput);
 				//console.log(neuronOutput)
-				output.push(neuronOutput)
+				neuronOutputs[layerNum].push(neuronOutput)
 			}
-			input = output;
-			output = [];
 		}
 
-		return input;
+		return neuronOutputs;
 
 	}
 	train(IOPairs) {	// Trains the network with a list of input-output pairs.
 
-		// Runs the network initially to calculate the sum of each error.
-		let currentError = 0;
-		for (let i=0; i<IOPairs.length; i++) {
-			let actualOutput = this.getOutput(IOPairs[i][0]);
-			currentError += this.getError(actualOutput, IOPairs[i][1]);
-		}		
+		// Loop through each IOPair and find the desired weight changes for each input
+		// After each IOPair has been looped, apply the average weight change from each IOPair to each weight
 
-		// Now start looping through weights and find one that lowers this error sum
-		for (var i=0; i<1; i++) {	// Trains network more than once
+		//console.log("Training with ", IOPairs)
 
-			// Pick a random weight in the entire network
-			let randomLayer = Math.floor(Math.random()*(this.structure.length-1));
-			let randomNeuron = Math.floor(Math.random()*(this.structure[randomLayer]+1));
-			let randomWeight = Math.floor(Math.random()*this.structure[randomLayer+1]);
-			let randomTweak = mapValue(Math.random(), 0, 1, -this.TRAINING_TWEAK, this.TRAINING_TWEAK);
+		let startingError = 0;
 
-			// Remember old value
-			let oldValue = this.network[randomLayer][randomNeuron].weights[randomWeight];
+		// Create array to store weight slopes
+		let dEdW = Array(this.structure.length-1);
+		for (var l=0; l<this.structure.length-1; l++) {
+			let layerNeurons = Array(this.structure[l]+1);	// Neurons in current layer (+1 for bias)
+			for (var n=0; n<this.structure[l]+1; n++) {
+				let neuronWeights = Array(this.structure[l+1]);	// Weights coming from each neuron (# neurons in next layer)
+				for (var m=0; m<this.structure[l+1]; m++) {
+					neuronWeights[m] = 0;
+				}
+				layerNeurons[n] = neuronWeights;
+			}
+			dEdW[l] = layerNeurons;
+		}
 
-			// Tweak weight
-			this.network[randomLayer][randomNeuron].weights[randomWeight] += randomTweak;
+		for (let i=IOPairs.length; i--;) {
 
-			// Calculate new error sum
-			let tweakedError = 0;
-			for (let i=0; i<IOPairs.length; i++) {
-				let tweakedOutput = this.getOutput(IOPairs[i][0]);
-				tweakedError += this.getError(tweakedOutput, IOPairs[i][1]);
+			let neuronOutputs = this.getOutput(IOPairs[i][0]);
+
+			let input = neuronOutputs[0];
+			let output = neuronOutputs[neuronOutputs.length-1];
+			let desired = IOPairs[i][1];
+
+			//console.log("IOPair: ", IOPairs[i])
+			//console.log("Output: ", neuronOutputs);
+
+			// Add error to starting error
+			for (let j=output.length; j--;) {
+				startingError += (output[j] - desired[j])**2;
 			}
 
-			// If error sum is smaller, apply the tweak to the network
-			if (tweakedError < currentError) {
-				//console.log("Tweak improved! ", tweakedOutput[0]+1);
-				currentError = tweakedError;	// Sets new error that is to be aimed for.
 
-			} else {
-				// Remove tweak if tweak did not improve network
-				this.network[randomLayer][randomNeuron].weights[randomWeight] = oldValue;
+			// Find the derivative of the error with respect to an individual weight 
+			/*
+
+				Need to store the output of each neuron in the network after it has run once.
+				This include inputs/outputs, plus any hidden neuron outputs (outputs are the activated sums of a neuron).
+		
+				The desired outputs are also needed to calculate the weight change.
+
+			*/
+
+			// Contains derivatives of the overall error with respect to each individual neuron output.
+			// Derivatives are held in layers starting with the final layer
+			let dEdO = [];
+			for (var l=neuronOutputs.length-1; l>0; l--) {
+				let layerDerivatives = Array(this.structure[l]);
+
+				// Find derivative for each neuron in this layer
+				for (var n=0; n<this.structure[l]; n++) {
+					if (l==neuronOutputs.length-1) {	
+						// If working with output layer, derivative is calculated directly
+						let derivative = 2 * (output[n] - desired[n]);
+						layerDerivatives[n] = derivative;
+
+					} else {	
+						// If working with hidden layer, derivative is calculated in terms of derivatives of next layer
+						// dEdO = sum of next layer neurons: 
+						// 	dE/dO(n) * dO(n)/dS(n) * dS(n)/dO
+						//  dE/dO(n) * (1 - O(n)^2) * w(n)
+						let derivative = 0;
+						for (var m=0; m<dEdO[dEdO.length-1].length; m++) {	// Requires the derivatives of previously calculated layer
+							derivative += dEdO[dEdO.length-1][m] * (1 - neuronOutputs[l+1][m]**2) * this.network[l][n].weights[m];
+						}
+						layerDerivatives[n] = derivative;
+					}
+				}
+
+				//console.log("dEdO for layer " + l, layerDerivatives);
+				dEdO.push(layerDerivatives);
 			}
+			//console.log("dEdO for network: ", dEdO)
+
+			// Calculate and add weight slopes to dEdW array which holds them
+			for (var l=0; l<this.structure.length-1; l++) {
+				for (var n=0; n<this.structure[l]+1; n++) {
+					for (var m=0; m<this.structure[l+1]; m++) {
+						dEdW[l][n][m] += neuronOutputs[l][n] * (1 - neuronOutputs[l+1][m]**2) * dEdO[dEdO.length-l-1][m];
+					}
+				}
+			}
+			//console.log("dEdW for network: ", dEdW);
 
 		}
 
-		return currentError;
+
+		// Now apply changes to weights
+		for (var l=0; l<dEdW.length; l++) {
+			for (var n=0; n<dEdW[l].length; n++) {
+				for (var m=0; m<dEdW[l][n].length; m++) {
+					this.network[l][n].weights[m] += dEdW[l][n][m] / IOPairs.length * -1 * this.LEARNING_RATE;
+				}
+			}
+		}
+
+
+
+		//console.log("Starting Error: ", startingError);
+
+		// Calculate new error
+		let newError = 0;
+		for (let i=IOPairs.length; i--;) {
+			// Add error to starting error
+			let newOutput = this.getOutput(IOPairs[i][0]);
+			newOutput = newOutput[newOutput.length-1];
+			for (let j=newOutput.length; j--;) {
+				newError += (newOutput[j] - IOPairs[i][1][j])**2;
+			}
+		}
+		//console.log("New Error: ", newError)
+
+		return newError;
+
 	}
 	getError(actual, predicted) {	// Returns the error of an actual output and a predicted output
 		let error = 0;
@@ -157,6 +234,18 @@ class Neural_Network {
 		}
 		return error;
 
+	}
+	test(IOPair) {
+		let output = this.getOutput(IOPair[0]);
+		output = output[output.length-1];
+		console.log("Output: ", output);
+
+		// Calculate error
+		let error = 0;
+		for (let j=output.length; j--;) {
+			error += (output[j] - IOPair[1][j])**2;
+		}
+		console.log("Error: ", error);
 	}
 }
 

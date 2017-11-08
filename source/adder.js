@@ -42,40 +42,69 @@ class Adder {
 
 		this.buttons = [
 			{
-				text: "Test 1000x",
+				text: "Test 1",
 				font: "20px Verdana",
 				rect: {x:800, y:80, h:35, w:200},
+				action: function() {
+					for (var i=0; i<1; i++) {
+						main.adder.train();
+					}
+				}
+			},{
+				text: "Test 10x",
+				font: "20px Verdana",
+				rect: {x:800, y:120, h:35, w:200},
+				action: function() {
+					for (var i=0; i<10; i++) {
+						main.adder.train();
+					}
+				}
+			},{
+				text: "Test 100x",
+				font: "20px Verdana",
+				rect: {x:800, y:160, h:35, w:200},
+				action: function() {
+					for (var i=0; i<100; i++) {
+						main.adder.train();
+					}
+				}
+			},{
+				text: "Test 1,000x",
+				font: "20px Verdana",
+				rect: {x:800, y:200, h:35, w:200},
 				action: function() {
 					for (var i=0; i<1000; i++) {
 						main.adder.train();
 					}
 				}
 			},{
-				text: "Test 10,000x",
+				text: "<",
 				font: "20px Verdana",
-				rect: {x:800, y:120, h:35, w:200},
+				rect: {x:330, y:580, h:30, w:30},
 				action: function() {
-					for (var i=0; i<10000; i++) {
-						main.adder.train();
-					}
+					main.adder.graphScale = Math.round(main.adder.graphScale/10);
+					main.adder.graphScale = Math.max(main.adder.graphScale, 1);
 				}
 			},{
-				text: "Test 100,000x",
+				text: ">",
 				font: "20px Verdana",
-				rect: {x:800, y:160, h:35, w:200},
+				rect: {x:500, y:580, h:30, w:30},
 				action: function() {
-					for (var i=0; i<100000; i++) {
-						main.adder.train();
-					}
+					main.adder.graphScale = Math.round(main.adder.graphScale*10);
 				}
 			},{
-				text: "Test 1,000,000x",
+				text: "<",
 				font: "20px Verdana",
-				rect: {x:800, y:200, h:35, w:200},
+				rect: {x:90, y:580, h:30, w:30},
 				action: function() {
-					for (var i=0; i<1000000; i++) {
-						main.adder.train();
-					}
+					main.adder.graphStart = Math.max(main.adder.graphStart-1, 0);
+				}
+			},{
+				text: ">",
+				font: "20px Verdana",
+				rect: {x:130, y:580, h:30, w:30},
+				action: function() {
+					main.adder.graphStart ++;
 				}
 			}
 		];
@@ -83,13 +112,14 @@ class Adder {
 
 
 		// Neural Network
-		this.nn = new Neural_Network([2,128,256,128,1]);
+		this.nn = new Neural_Network([2,3,3,1]);
 
 
 		this.errorList = [];
 		this.errorGraph = {x:20+59, y:59, w:700, h:512};
 
-		this.graphScale = 100;
+		this.graphScale = 1;
+		this.graphStart = 0;	// Number to start graph at
 
 
 	}
@@ -107,7 +137,7 @@ class Adder {
 			}
 			averagedData.push(avg/this.graphScale);
 		}
-		graph(averagedData, this.errorGraph);
+		graph(averagedData, this.errorGraph, this.graphStart);
 
 		drawText(this.graphScale + "x scale", this.errorGraph.x+this.errorGraph.w/2, this.errorGraph.y+this.errorGraph.h+25, 20, "black", "center");
 
@@ -146,15 +176,15 @@ class Adder {
 
 	}
 	train() {
-
-		let input = [Math.random(), Math.random()];
-		let expected = [input[0] + input[1] - 1];
-		//console.log("Testing: ", input);
-		//console.log("Expecting ", expected[0]+1);
-
-		//console.log("Original: ", main.nn.getOutput(x)[0]+1);
 		
-		let error = this.nn.train(input, expected);
+		let IOPairs = [];
+		for (let i=0; i<10; i++) {
+			let input = [Math.random(), Math.random()];
+			let expected = [input[0] + input[1] - 1];
+			IOPairs.push([input,expected])
+		}
+
+		let error = this.nn.train(IOPairs);
 		this.errorList.push(error);
 		//console.log(error);
 		
@@ -184,7 +214,7 @@ function graph(data, rect) {
 		maxY = Math.max(maxY, data[i]);
 	}
 
-	drawText(maxY.toFixed(3), rect.x-5, rect.y+20, 20, "black", "right");
+	drawText(maxY.toFixed(2), rect.x-5, rect.y+20, 20, "black", "right");
 
 	ctx.lineCap = "round"
 	ctx.lineWidth = 3;

@@ -161,7 +161,8 @@ class Draw {
 				drawText(i + ": " + ((this.testGuesses[i]+1)*50).toFixed(2) + "%", 600 + Math.floor(i/5)*130, 220+(i%5)*30, 20);		
 			}
 
-			drawText(answer + " - " + ((answer==this.currentDigit) ? "CORRECT" : "WRONG ("+this.currentDigit+")"), 600, 170, 20, (answer==this.currentDigit) ? "green" : "red");
+			//drawText(answer + " - " + ((answer==this.currentDigit) ? "CORRECT" : "WRONG ("+this.currentDigit+")"), 600, 170, 20, (answer==this.currentDigit) ? "green" : "red");
+			drawText("Guessed " + answer + " (" + ((this.testGuesses[answer]+1)*50).toFixed(2) + "%)",  600, 170, 20);
 
 
 		}

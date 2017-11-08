@@ -156,7 +156,7 @@ class Recogniser {
 		this.graphScale = 1;
 		this.graphStart = 0;	// Number to start graph at
 
-		this.trainingGroupSize = 10;		// Number of training examples used per tweak to the network
+		this.trainingGroupSize = 50;		// Number of training examples used per tweak to the network
 
 
 	}
@@ -260,20 +260,11 @@ class Recogniser {
 		}
 		//console.log("Testing: ", input);
 		//console.log("Expecting ", expected[0]+1);
-
 		//console.log("Original: ", main.nn.getOutput(x)[0]+1);
 
 		let output = this.nn.getOutput(input);
+		output = output[output.length-1];
 
-	/*	let answer = 0;
-		for (var i=0; i<10; i++) {
-			if (output[i] > output[answer]) answer = i;
-
-			output[i] = output[i].toFixed(2);
-		}
-
-		console.log(digit.value + " -> " + answer, output)
-	*/
 		return output;	//(digit.value == answer)
 
 	}
@@ -317,7 +308,7 @@ function graph(data, rect, start=0) {
 		maxY = Math.max(maxY, data[i]);
 	}
 
-	drawText(maxY.toFixed(3), rect.x-5, rect.y+20, 20, "black", "right");
+	drawText(maxY.toFixed(2), rect.x-5, rect.y+20, 20, "black", "right");
 
 	ctx.lineCap = "round"
 	ctx.lineWidth = 3;

@@ -121,12 +121,12 @@ class Main {
 						main.mode = "draw";
 						this.text = "Mode: Draw";
 					}
-					//else if (main.mode == "recogniser") {
-					//	main.mode = "adder";
-					//	this.text = "Mode: Adder";
+					//else if (main.mode == "adder") {
+					//	main.mode = "draw";
+					//	this.text = "Mode: Draw";
 					//}
 					
-					console.log("Changed mode to " + main.mode);
+					//console.log("Changed mode to " + main.mode);
 				}
 			}
 		];
